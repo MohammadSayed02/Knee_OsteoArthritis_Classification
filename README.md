@@ -1,2 +1,2 @@
-# Knee_OsteoArthritis_clasification
- Graduation Project Team #13_SBME2024
+# Knee_OsteoArthritis_classification
+## Graduation Project Team #13_SBME2024
