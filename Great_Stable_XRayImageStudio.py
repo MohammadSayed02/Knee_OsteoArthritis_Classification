@@ -1126,7 +1126,7 @@ class HOGHistogram(QWidget):
         super().__init__()
         self.setWindowTitle("HOG Histogram")
         self.setWindowIcon(QIcon("imgs/LogoSplashScreen_Original.png"))
-        self.setGeometry(1050, 150, 800, 400)
+        self.setGeometry(1050, 400, 800, 400)
         self.HOGHistogram_label = QLabel("HOG Histogram")
         self.HOGHistogram_label.setStyleSheet("color: white;font:25px")
         self.HOGHistogram_label.setAlignment(Qt.AlignCenter)
@@ -1438,10 +1438,17 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
         self.lbp_features = []
         self.lbp_variance = 0
         self.lbp_entropy = 0
+        self.lbp_features_Normalized = []
+        self.lbp_variance_Normalized = 0
+        self.lbp_entropy_Normalized = 0
         self.ltp_features = []
         self.ltp_variance = 0
         self.ltp_entropy = 0
+        self.ltp_features_Normalized = []
+        self.ltp_variance_Normalized = 0
+        self.ltp_entropy_Normalized = 0
         self.hog_bins = []
+        self.hog_bins_Normalized = []
         #                        ____________________ Calculate Area Ratio______________________________
         self.screw_thickness1 = 4.5
         self.screw_thickness2 = 3.0
@@ -3116,9 +3123,10 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
         n_points = 8 * radius
         lbp_image = local_binary_pattern(image, n_points, radius, method='uniform')
         lbp_histogram, _ = np.histogram(lbp_image, bins=np.arange(0, n_points + 3), range=(0, n_points + 2))
+        lbp_histogram_Normalized = lbp_histogram / (lbp_histogram.sum() + 1e-5)
         # lbp_histogram = lbp_histogram / (lbp_histogram.sum() + 1e-5)
         self.LBPHistogramWindow.set_lbp_histogram(lbp_histogram)
-        return lbp_histogram, lbp_image
+        return lbp_histogram, lbp_image, lbp_histogram_Normalized
 
 
     def calculate_lbp_features_YOLO(self, image):
@@ -3129,9 +3137,10 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
             n_points = 8 * radius
             lbp_image = local_binary_pattern(image, n_points, radius, method='uniform')
             lbp_histogram, _ = np.histogram(lbp_image, bins=np.arange(0, n_points + 3), range=(0, n_points + 2))
+            lbp_histogram_Normalized = lbp_histogram / (lbp_histogram.sum() + 1e-5)
             # lbp_histogram = lbp_histogram / (lbp_histogram.sum() + 1e-5)
             self.LBPHistogramWindow.set_lbp_histogram(lbp_histogram)
-            return lbp_histogram, lbp_image
+            return lbp_histogram, lbp_image, lbp_histogram_Normalized
 
     def calculate_ltp_features(self, image, num_bins = 10):
         h, w = image.shape
@@ -3154,9 +3163,10 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
         
         num_bins += 1
         ltp_histogram, _ = np.histogram(ltp_image, bins=np.arange(0, num_bins), range=(0, num_bins))
+        ltp_histogram_Normalized = ltp_histogram / (ltp_histogram.sum() + 1e-5)
         # ltp_histogram = ltp_histogram / (ltp_histogram.sum() + 1e-5)
         self.LTPHistogramWindow.set_LTPHistogramWindow_histogram(ltp_histogram)
-        return ltp_histogram, ltp_image
+        return ltp_histogram, ltp_image, ltp_histogram_Normalized
 
 
     def calculate_ltp_features_YOLO(self, image, num_bins=10):
@@ -3183,9 +3193,10 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
 
         num_bins += 1
         ltp_histogram, _ = np.histogram(ltp_image, bins=np.arange(0, num_bins), range=(0, num_bins))
+        ltp_histogram_Normalized = ltp_histogram / (ltp_histogram.sum() + 1e-5)
         # ltp_histogram = ltp_histogram / (ltp_histogram.sum() + 1e-5)
         self.LTPHistogramWindow.set_LTPHistogramWindow_histogram(ltp_histogram)
-        return ltp_histogram, ltp_image
+        return ltp_histogram, ltp_image, ltp_histogram_Normalized
 
 
 
@@ -3220,19 +3231,21 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
                     hog_image[i:i + cell_size[0], j:j + cell_size[1]] = histogram.argmax() * (180 / bins)
 
             epsilon = 1e-6
-            hog_bins /= (np.linalg.norm(hog_bins) + epsilon)
+            # hog_bins /= (np.linalg.norm(hog_bins) + epsilon)
+            hog_bins_Normalized = hog_bins /  (np.linalg.norm(hog_bins) + epsilon)
             
             
             print(f"\033[92m____________________________________________________________________________________________________________________\033[0m")
             print(f"\033[92mlength of Histogram Of Oriented Gradients:{len(hog_bins)} bins\n\033[0m")
             print(f"\033[92mHOG Feature vector:{(hog_bins)}\n\033[0m")
+            print(f"\033[92mHOG Feature vector (Normalized):{(hog_bins_Normalized)}\n\033[0m")
             print(f"\033[92m____________________________________________________________________________________________________________________\033[0m")
 
 
             self.HOGHistogram.set_HOG_Histogram(hog_bins)
             self.HistogramOfOrientedGradientsImage.set_HOG_Image(hog_image)
             
-            return hog_bins
+            return hog_bins, hog_bins_Normalized
 
         else:
             return []
@@ -3448,18 +3461,32 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
                     if roi_cropped_image is not None:
                         self.cooccurrence_properties = self.calculate_cooccurrence_parameters_YOLO(roi_cropped_image)
                         self.intensity_mean, self.intensity_stddev, self.intensity_skewness, self.intensity_kurtosis = self.calculate_intensity_stats(roi_cropped_image)
-                        self.hog_bins = self.compute_hog_features(roi_cropped_image)
-                        # self.hog_bins = self.compute_hog_features(img)
-                        self.lbp_features, _ = self.calculate_lbp_features_YOLO(roi_cropped_image)
-                        self.ltp_features, _ = self.calculate_ltp_features_YOLO(roi_cropped_image)
+
+                        self.lbp_features, _, self.lbp_features_Normalized = self.calculate_lbp_features_YOLO(roi_cropped_image)
+                        self.ltp_features, _, self.ltp_features_Normalized = self.calculate_ltp_features_YOLO(roi_cropped_image)
                         self.lbp_variance = np.var(self.lbp_features)
                         self.lbp_entropy = -np.sum(self.lbp_features * np.log2(self.lbp_features + 1e-5))
+                        self.lbp_variance_Normalized = np.var(self.lbp_features_Normalized)
+                        self.lbp_entropy_Normalized = -np.sum(self.lbp_features_Normalized * np.log2(self.lbp_features_Normalized + 1e-5))
+                        
                         if self.ltp_features is not None:
                             self.ltp_variance = np.var(self.ltp_features)
                             self.ltp_entropy = -np.sum(self.ltp_features * np.log2(self.ltp_features + 1e-5))
                         else:
                             self.ltp_variance = None
                             self.ltp_entropy = None
+                        
+                        
+                        if self.ltp_features_Normalized is not None:
+                            self.ltp_variance_Normalized = np.var(self.ltp_features_Normalized)
+                            self.ltp_entropy_Normalized = -np.sum(self.ltp_features_Normalized * np.log2(self.ltp_features_Normalized + 1e-5))
+                        else:
+                            self.ltp_variance_Normalized = None
+                            self.ltp_entropy_Normalized = None
+                            
+                        self.hog_bins, self.hog_bins_Normalized = self.compute_hog_features(roi_cropped_image)
+                        # self.hog_bins, hog_bins_Normalized = self.compute_hog_features(img)
+                        
                         file_name = os.path.splitext(os.path.basename(image_path))[0]
                         csv_file_path_yolo = "Outputs/statistics_YOLO.csv"
                         write_header = not os.path.exists(csv_file_path_yolo)
@@ -3467,8 +3494,11 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
                             with open(csv_file_path_yolo, mode="a", newline="") as csv_file:
                                 fieldnames = ["Image Name", "Class", "percentage", "Crop Top-Left (X, Y)", "Crop Bottom-Right (X, Y)", "YOLO_Probability", "Tibial Width (Pixel)", "Tibial Width (mm)", "JSN Avg V.Distance (Pixel)", "JSN Avg V.Distance (mm)", "Medial_distance (Pixel)", "Central_distance (Pixel)", "Lateral_distance (Pixel)","Medial_distance (mm)", "Central_distance (mm)", "Lateral_distance (mm)", "Tibial_Medial_ratio", "Tibial_Central_ratio", "Tibial_Lateral_ratio", "JSN Area (Squared Pixel)", "JSN Area (Squared mm)", "Medial Area (Squared Pixel)", "Central Area (Squared Pixel)", "Lateral Area (Squared Pixel)","Medial Area (Squared mm)", "Central Area (Squared mm)", "Lateral Area (Squared mm)", "Medial Area (JSN Ratio)", "Central Area (JSN Ratio)", "Lateral Area (JSN Ratio)", "Medial Area Ratio TWPA (%)","Central Area Ratio TWPA (%)", "Lateral Area Ratio TWPA (%)","Mean", "Sigma", "Skewness", "Kurtosis"] + list(self.cooccurrence_properties.keys()) + \
                                             [f"LBP_{i}" for i in range(len(self.lbp_features))] + ["LBP_Variance", "LBP_Entropy"] + \
+                                            [f"LBP_Normalized_{i}" for i in range(len(self.lbp_features_Normalized))] + ["LBP_Variance_Normalized", "LBP_Entropy_Normalized"] + \
                                             [f"LTP_{i}" for i in range(len(self.ltp_features))] + ["LTP_Variance", "LTP_Entropy"] + \
-                                            [f"HOG_{i}" for i in range(len(self.hog_bins))] 
+                                            [f"LTP_Normalized_{i}" for i in range(len(self.ltp_features_Normalized))] + ["LTP_Variance_Normalized", "LTP_Entropy_Normalized"] + \
+                                            [f"HOG_{i}" for i in range(len(self.hog_bins))] + \
+                                            [f"HOG_Normalized_{i}" for i in range(len(self.hog_bins_Normalized))]
                                 writer = csv.DictWriter(csv_file, fieldnames=fieldnames)
                                 if write_header:
                                     writer.writeheader()
@@ -3514,10 +3544,17 @@ class Feature_Extraction_and_Visualization_Screen(QMainWindow):
                                     **{f"LBP_{i}": self.lbp_features[i] for i in range(len(self.lbp_features))},
                                     "LBP_Variance": self.lbp_variance,
                                     "LBP_Entropy": self.lbp_entropy,
+                                    **{f"LBP_Normalized_{i}": self.lbp_features_Normalized[i] for i in range(len(self.lbp_features_Normalized))},
+                                    "LBP_Variance_Normalized": self.lbp_variance_Normalized,
+                                    "LBP_Entropy_Normalized": self.lbp_entropy_Normalized,
                                     **{f"LTP_{i}": self.ltp_features[i] for i in range(len(self.ltp_features))},
                                     "LTP_Variance": self.ltp_variance,
                                     "LTP_Entropy": self.ltp_entropy,
-                                    **{f"HOG_{i}": self.hog_bins[i] for i in range(len(self.hog_bins))}
+                                     **{f"LTP_Normalized_{i}": self.ltp_features_Normalized[i] for i in range(len(self.ltp_features_Normalized))},
+                                    "LTP_Variance_Normalized": self.ltp_variance_Normalized,
+                                    "LTP_Entropy_Normalized": self.ltp_entropy_Normalized,
+                                    **{f"HOG_{i}": self.hog_bins[i] for i in range(len(self.hog_bins))},
+                                    **{f"HOG_Normalized_{i}": self.hog_bins_Normalized[i] for i in range(len(self.hog_bins_Normalized))}
                                     
                                 }
                                 writer.writerow(row_data)
